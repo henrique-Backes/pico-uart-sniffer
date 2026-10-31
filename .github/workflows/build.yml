@@ -1,0 +1,105 @@
+name: Build binaries
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: uart-sniffer-windows
+            exe: uart-sniffer.exe
+            mcp_exe: uart-sniffer-mcp.exe
+          - os: ubuntu-latest
+            artifact: uart-sniffer-linux
+            exe: uart-sniffer
+            mcp_exe: uart-sniffer-mcp
+          - os: macos-latest
+            artifact: uart-sniffer-macos
+            exe: uart-sniffer
+            mcp_exe: uart-sniffer-mcp
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          cd host
+          uv sync --extra dev
+          uv pip install pyinstaller
+
+      - name: Build uart-sniffer
+        run: |
+          cd host
+          uv run pyinstaller \
+            --name uart-sniffer \
+            --onefile \
+            --clean \
+            src/uart_sniffer/cli.py
+
+      - name: Build uart-sniffer-mcp
+        run: |
+          cd host
+          uv run pyinstaller \
+            --name uart-sniffer-mcp \
+            --onefile \
+            --clean \
+            src/uart_sniffer/mcp_server.py
+
+      - name: Verify binaries
+        run: |
+          ./dist/${{ matrix.exe }} --help
+          ./dist/${{ matrix.mcp_exe }} --help 2>&1 | head -5
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            host/dist/${{ matrix.exe }}
+            host/dist/${{ matrix.mcp_exe }}
+
+  release:
+    name: Create Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/uart-sniffer-windows/uart-sniffer.exe
+            artifacts/uart-sniffer-windows/uart-sniffer-mcp.exe
+            artifacts/uart-sniffer-linux/uart-sniffer
+            artifacts/uart-sniffer-linux/uart-sniffer-mcp
+            artifacts/uart-sniffer-macos/uart-sniffer
+            artifacts/uart-sniffer-macos/uart-sniffer-mcp
+          generate_release_notes: true
