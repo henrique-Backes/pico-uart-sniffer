@@ -1,0 +1,6 @@
+#BOOT pico-uart-sniffer 0.1.0 proto=1
+#CFG baud=115200 fmt=8N1 gap=3.5 mode=text
+U1 4294967000 41
+U2 4294967100 42
+U1 0000000100 43
+U2 0000000200 44

@@ -1,0 +1,8 @@
+#BOOT pico-uart-sniffer 0.1.0 proto=1
+#CFG baud=115200 fmt=8N1 gap=3.5 mode=text
+#WHATEVER campo novo que o parser deve ignorar
+garbage line that is not a frame
+U1 00000004
+U2 0000000500 0102
+U2+ 0304
+U1 0000000600 0a
